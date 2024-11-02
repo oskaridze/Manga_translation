@@ -24,7 +24,7 @@ Installation
 Clone the repository:
 
 git clone https://github.com/yourusername/Manga-translation.git
-cd manga-translator
+cd Manga-translation
 
 Create and activate virtual environment:
 
