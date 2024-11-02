@@ -23,12 +23,12 @@ Installation
 
 Clone the repository:
 
-bashCopygit clone https://github.com/yourusername/manga-translator.git
+git clone https://github.com/yourusername/Manga-translation.git
 cd manga-translator
 
 Create and activate virtual environment:
 
-bashCopypython -m venv venv
+python -m venv venv
 # For Windows:
 venv\Scripts\activate
 # For Linux/Mac:
@@ -36,11 +36,11 @@ source venv/bin/activate
 
 Install required packages:
 
-bashCopypip install -r requirements.txt
+pip install -r requirements.txt
 
 Create .env file based on .env.example:
 
-bashCopycp .env.example .env
+cp .env.example .env
 
 Update the .env file with your API credentials and preferences
 
@@ -59,7 +59,7 @@ MAX_FONT_SIZE=15
 Place your manga images in the input directory specified in .env
 Run the script:
 
-bashCopypython main.py
+python main.py
 
 For each detected text bubble, you can:
 
