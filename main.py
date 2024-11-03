@@ -11,6 +11,9 @@ import os
 # Get environment variables
 API_KEY = os.getenv('API_KEY')
 MODEL_ID = os.getenv('MODEL_ID')
+IMAGES_DIR = os.getenv('IMAGES_DIR')
+INPUT_IMAGES_DIR = os.getenv('INPUT_IMAGES_DIR')
+OUTPUT_IMAGE_PATH = os.getenv('OUTPUT_IMAGE_PATH')
 DEFAULT_TARGET_LANG = os.getenv('DEFAULT_TARGET_LANG')
 OCR_LANG = os.getenv('OCR_LANG')
 FONT_PATH = os.getenv('FONT_PATH')
@@ -346,8 +349,8 @@ class MangaTranslator:
 
 def main():
     # Путь к изображению
-    image_path = "examples/original/manga_page1.png"
-    output_path = 'examples/translated/translated_page9.jpg'
+    image_path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}manga_page1.png'
+    output_path = f'{IMAGES_DIR}{OUTPUT_IMAGE_PATH}translated_page10.jpg'
     
     # Создаем экземпляр транслятора
     translator = MangaTranslator(image_path)

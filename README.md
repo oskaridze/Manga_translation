@@ -23,7 +23,7 @@ Installation
 
 Clone the repository:
 
-git clone https://github.com/yourusername/Manga-translation.git
+git clone https://github.com/oskaridze/Manga-translation.git
 cd Manga-translation
 
 Create and activate virtual environment:
@@ -48,12 +48,13 @@ Configuration
 Update the following variables in your .env file:
 envCopyAPI_KEY=your_api_key_here
 MODEL_ID=your_model_id
-INPUT_IMAGES_DIR=images/
-OUTPUT_IMAGE_PATH=translated_manga.jpg
+IMAGES_DIR=examples/
+INPUT_IMAGES_DIR=original/
+OUTPUT_IMAGE_PATH=translated/
 DEFAULT_TARGET_LANG=ru
 OCR_LANG=en
-FONT_PATH=arial.ttf
-MAX_FONT_SIZE=15
+FONT_PATH=fonts/animeacev05.ttf
+MAX_FONT_SIZE=14
 📖 Usage
 
 Place your manga images in the input directory specified in .env
@@ -77,7 +78,7 @@ Manga_translation/
 ├── .env             # Configuration file
 ├── .env.example     # Example configuration
 ├── .gitignore       # Git ignore file
-└── examples/        # Input images directory
+└── examples/        # Input/export images directory
 ⚙️ How it Works
 
 Text Detection: Uses YOLOv8 model to detect text bubbles in the manga image
