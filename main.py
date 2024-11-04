@@ -2,9 +2,10 @@ from inference import get_model
 import supervision as sv
 from paddleocr import PaddleOCR
 from deep_translator import GoogleTranslator
-import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
+import numpy as np
+import re
 import cv2
 import os
 
@@ -45,7 +46,34 @@ class MangaTranslator:
         check_required_env_vars()
 
         self.model = get_model(model_id=MODEL_ID, api_key=API_KEY)
-        self.ocr = PaddleOCR(use_angle_cls=True, lang=OCR_LANG)
+        # self.ocr = PaddleOCR(use_angle_cls=True, lang=OCR_LANG)
+        self.ocr = PaddleOCR(
+            use_angle_cls=True,
+            lang=OCR_LANG,
+            det_db_thresh=0.3,  # Увеличивает чувствительность детектора текста
+            det_db_box_thresh=0.5,  # Порог уверенности для текстовых боксов
+            rec_batch_num=6,  # Размер батча для распознавания
+            use_gpu=True  # Использование GPU если доступно
+        )
+    
+
+    def preprocess_text_region(self, text_region):
+        """Предобработка изображения перед OCR"""
+        # Увеличение размера изображения для лучшего распознавания
+        scale = 2
+        text_region = cv2.resize(text_region, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
+        
+        # Преобразование в оттенки серого
+        gray = cv2.cvtColor(text_region, cv2.COLOR_BGR2GRAY)
+        
+        # Повышение контраста
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        contrast = clahe.apply(gray)
+        
+        # Бинаризация изображения
+        _, binary = cv2.threshold(contrast, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        return binary
 
     def remove_text_from_image(image, x, y, w, h):
         """Удаляет текст из прямоугольной области и заполняет её белым цветом"""
@@ -256,14 +284,21 @@ class MangaTranslator:
         bubble_contours = self.detect_speech_bubbles()
         text_blocks = []
         
-        # Для отладки: сохраняем изображение с найденными контурами
-        debug_image = self.image.copy()
-        cv2.drawContours(debug_image, bubble_contours, -1, (0,255,0), 2)
-        cv2.imwrite('debug_bubbles.jpg', debug_image)
-
+        # Сортируем контуры по размеру, чтобы исключить слишком маленькие
+        bubble_contours = sorted(bubble_contours, key=cv2.contourArea, reverse=True)
+        
         for contour in bubble_contours:
+            area = cv2.contourArea(contour)
+            if area < 100:  # Пропускаем слишком маленькие области
+                continue
+                
             x, y, w, h = self.get_bubble_bounds(contour)
             
+            # Проверяем соотношение сторон пузыря
+            aspect_ratio = w / h
+            if aspect_ratio > 5 or aspect_ratio < 0.2:  # Пропускаем слишком узкие или широкие области
+                continue
+                
             # Создаем маску для текущего пузыря
             mask = np.zeros(self.image.shape[:2], dtype=np.uint8)
             cv2.drawContours(mask, [contour], -1, (255), -1)
@@ -271,41 +306,145 @@ class MangaTranslator:
             # Вырезаем область с текстом
             text_region = self.image[y:y+h, x:x+w].copy()
             
-            # Применяем OCR
-            result = self.ocr.ocr(text_region, cls=True)
+            # Предобработка изображения
+            processed_region = self.preprocess_text_region(text_region)
+            
+            # Применяем OCR с повышенной точностью
+            result = self.ocr.ocr(processed_region, cls=True)
             
             if result and result[0]:
                 texts = []
+                confidences = []
+                
                 for line in result[0]:
                     if isinstance(line, list):
                         for item in line:
-                            if isinstance(item, tuple):
-                                print(item)
-                                text = item[0]
-                                if isinstance(text, tuple):
-                                    text = text[0]
-                                texts.append(text)
+                            if isinstance(item, tuple) and len(item) >= 2:
+                                text = item[0]  # Текст
+                                confidence = item[1]  # Уверенность распознавания
+                                
+                                # Фильтруем результаты с низкой уверенностью
+                                if confidence > 0.5:  # Порог уверенности
+                                    texts.append(text)
+                                    confidences.append(confidence)
                 
                 if texts:
-                    text = ' '.join(texts)
+                    # Объединяем текст с учетом уверенности распознавания
+                    final_text = ' '.join(texts)
+                    avg_confidence = sum(confidences) / len(confidences)
+                    
+                    # Очистка текста
+                    final_text = self.clean_text(final_text)
+                    
                     text_blocks.append({
-                        'text': text,
+                        'text': final_text,
+                        'confidence': avg_confidence,
                         'contour': contour,
                         'x': x,
                         'y': y,
                         'w': w,
                         'h': h
                     })
-                    # Для отладки: печатаем найденный текст
-                    print(f"Found text in bubble: {text}")
-
-        # Сортировка блоков
-        sorted_blocks = sorted(text_blocks, key=lambda b: (self.get_section(b), -b['x']))
         
-        # Для отладки: печатаем количество найденных блоков
-        print(f"Total text blocks found: {len(sorted_blocks)}")
+        # Сортировка блоков с учетом их расположения на странице
+        sorted_blocks = sorted(text_blocks, 
+                            key=lambda b: (self.get_section(b), b['y'], b['x']))
         
         return sorted_blocks
+
+    def validate_text(self, text):
+        """Валидация распознанного текста"""
+        if not text:
+            return False
+            
+        # Минимальная длина текста
+        if len(text) < 2:
+            return False
+        
+        # Процент допустимых символов
+        valid_chars = set('абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ!?.,- ')
+        text_chars = set(text)
+        valid_ratio = len(text_chars.intersection(valid_chars)) / len(text_chars)
+        
+        return valid_ratio > 0.8
+
+    def merge_nearby_text(self, texts, max_distance=50):
+        """Объединение близко расположенных текстовых блоков"""
+        merged = []
+        current_group = []
+        
+        for text in sorted(texts, key=lambda t: (t['y'], t['x'])):
+            if not current_group:
+                current_group.append(text)
+                continue
+                
+            last = current_group[-1]
+            if (abs(text['y'] - last['y']) < max_distance and 
+                abs(text['x'] - last['x']) < max_distance):
+                current_group.append(text)
+            else:
+                merged.append(' '.join(t['text'] for t in current_group))
+                current_group = [text]
+        
+        if current_group:
+            merged.append(' '.join(t['text'] for t in current_group))
+        
+        return merged
+
+    def clean_text(self, text):
+        """Очистка и нормализация распознанного текста"""
+        # Удаление лишних пробелов
+        text = ' '.join(text.split())
+        
+        # Удаление повторяющихся знаков препинания
+        text = re.sub(r'([!?.]){2,}', r'\1', text)
+        
+        # Исправление распространенных ошибок OCR
+        text = text.replace('0', 'О').replace('3', 'З')
+        
+        return text.strip()
+
+    def show_current_bubble(self, contour):
+        """Показывает текущий обрабатываемый пузырь на изображении"""
+        # Создаем копию изображения для отображения
+        display_image = self.image.copy()
+        
+        # Рисуем контур текущего пузыря красным цветом
+        cv2.drawContours(display_image, [contour], -1, (0, 0, 255), 2)
+        
+        # Получаем размер экрана
+        screen_width = 1920  # Стандартное разрешение FullHD
+        screen_height = 1080
+        
+        # Вычисляем размер окна (70% от размера экрана)
+        window_width = int(screen_width * 0.7)
+        window_height = int(screen_height * 0.7)
+        
+        # Масштабируем изображение, сохраняя пропорции
+        aspect_ratio = display_image.shape[1] / display_image.shape[0]
+        
+        if aspect_ratio > 1:
+            # Изображение шире, чем выше
+            new_width = window_width
+            new_height = int(window_width / aspect_ratio)
+        else:
+            # Изображение выше, чем шире
+            new_height = window_height
+            new_width = int(window_height * aspect_ratio)
+        
+        # Изменяем размер изображения
+        resized_image = cv2.resize(display_image, (new_width, new_height))
+        
+        # Показываем изображение
+        cv2.namedWindow('Current bubble', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Current bubble', new_width, new_height)
+        cv2.imshow('Current bubble', resized_image)
+        cv2.waitKey(1)
+
+    def save_result(self, output_path):
+        """Сохраняет результат"""
+        cv2.imwrite(output_path, self.output_image)
+        print(f"\nTranslated image saved as '{output_path}'")
 
     def translate_and_replace_text(self, text_blocks):
         """Переводит и заменяет текст в пузырях"""
@@ -313,56 +452,85 @@ class MangaTranslator:
             print("No text blocks found!")
             return
             
+        previous_texts = set()  # Для отслеживания дубликатов
+        
+        # Создаем окно заранее
+        cv2.namedWindow('Current bubble', cv2.WINDOW_NORMAL)
+            
         for i, block in enumerate(text_blocks, 1):
             original_text = block['text']
-            translated_text = translate_text(original_text)
+            confidence = block.get('confidence', 0)
             
-            print(f"{i}. Original: {original_text}")
-            print(f"   Translation: {translated_text}\n")
+            # Пропускаем дубликаты текста
+            if original_text in previous_texts:
+                continue
             
-            # Запрашиваем корректировку перевода
-            custom_text = input("Enter custom translation (or press Enter for auto): ")
-            # custom_pos = int(input("Enter custom text position in bubble (or press Enter for auto): ".strip() or 0))
-            # custom_sfont = int(input("Enter custom text font (or press Enter for auto): ".strip() or 15))
+            previous_texts.add(original_text)
+            
+            # Показываем текущий пузырь
+            self.show_current_bubble(block['contour'])
+            
+            print(f"\n{i}. Original text (confidence: {confidence:.2f}):")
+            print(f"   {original_text}")
+            
+            try:
+                translated_text = translate_text(original_text)
+                print(f"   Translation: {translated_text}")
+            except Exception as e:
+                print(f"   Translation error: {e}")
+                translated_text = original_text
+            
+            # Запрашиваем корректировку только если уверенность распознавания низкая
+            # if confidence < 0.7:
+            #     print("   Low confidence detection. Please verify:")
+            #     custom_text = input("   Enter correct text (or press Enter for auto): ")
+            #     final_text = custom_text if custom_text else translated_text
+            # else:
+            #     final_text = translated_text
+
+            custom_text = input("Enter correct text (or press Enter for auto): ")
             final_text = custom_text if custom_text else translated_text
-
-            # Удаляем оригинальный текст
-            if final_text != ' ':
-                self.remove_text_from_bubble(block['contour'])
             
-            # Рисуем новый текст
-            self.output_image = self.draw_text_on_image(
-                self.output_image,
-                final_text,
-                block['x'],
-                block['y'],
-                block['w'],
-                block['h'],
-                # max_font_size=custom_sfont,
-                # cs_pos=custom_pos
-            )
+            if final_text and final_text.strip() != ' ':
+                self.remove_text_from_bubble(block['contour'])
+                self.output_image = self.draw_text_on_image(
+                    self.output_image,
+                    final_text.strip().capitalize(),
+                    block['x'],
+                    block['y'],
+                    block['w'],
+                    block['h']
+                )
+    
+    # Закрываем окно после завершения
+    cv2.destroyAllWindows()
 
-    def save_result(self, output_path):
-        """Сохраняет результат"""
-        cv2.imwrite(output_path, self.output_image)
-        print(f"\nTranslated image saved as '{output_path}'")
 
 def main():
     # Путь к изображению
-    image_path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}manga_page1.png'
-    output_path = f'{IMAGES_DIR}{OUTPUT_IMAGE_PATH}translated_page10.jpg'
+    # image_path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}4.jpeg'
+    # images = glob.glob(f'{IMAGES_DIR}{INPUT_IMAGES_DIR}*.jpeg')
+    path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}'
+    dir_list = os.listdir(path)
+    print(len(dir_list))
+    num = 3
+
+    for image in range(len(dir_list)):
+        image = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}{num}.jpeg'
+        output_path = f'{IMAGES_DIR}{OUTPUT_IMAGE_PATH}translated_{num}.jpeg'
+        # Создаем экземпляр транслятора
+        translator = MangaTranslator(image)
     
-    # Создаем экземпляр транслятора
-    translator = MangaTranslator(image_path)
-    
-    # Обрабатываем изображение
-    text_blocks = translator.process_bubbles()
-    
-    # Переводим и заменяем текст
-    translator.translate_and_replace_text(text_blocks)
-    
-    # Сохраняем результат
-    translator.save_result(output_path)
+        # Обрабатываем изображение
+        text_blocks = translator.process_bubbles()
+        
+        # Переводим и заменяем текст
+        translator.translate_and_replace_text(text_blocks)
+        
+        # Сохраняем результат
+        translator.save_result(output_path)
+
+        num += 1
 
 if __name__ == "__main__":
     main()
