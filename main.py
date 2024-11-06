@@ -4,6 +4,8 @@ from paddleocr import PaddleOCR
 from deep_translator import GoogleTranslator
 from PIL import Image, ImageDraw, ImageFont
 from dotenv import load_dotenv
+from bs4 import BeautifulSoup
+import requests
 import numpy as np
 import re
 import cv2
@@ -396,9 +398,6 @@ class MangaTranslator:
         # Удаление лишних пробелов
         text = ' '.join(text.split())
         
-        # Удаление повторяющихся знаков препинания
-        text = re.sub(r'([!?.]){2,}', r'\1', text)
-        
         # Исправление распространенных ошибок OCR
         text = text.replace('0', 'О').replace('3', 'З')
         
@@ -510,16 +509,31 @@ def main():
     # Путь к изображению
     # image_path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}4.jpeg'
     # images = glob.glob(f'{IMAGES_DIR}{INPUT_IMAGES_DIR}*.jpeg')
-    path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}'
-    dir_list = os.listdir(path)
-    print(len(dir_list))
-    num = 3
 
-    for image in range(len(dir_list)):
-        image = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}{num}.jpeg'
-        output_path = f'{IMAGES_DIR}{OUTPUT_IMAGE_PATH}translated_{num}.jpeg'
+    response = requests.get("https://w43.1piecemanga.com/manga/one-piece-chapter-1128-2/")
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    # path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}'
+    # dir_list = os.listdir(path)
+    # print(len(dir_list))
+    
+    i = 0
+    for pic in soup.find_all('img'):
+        i += 1
+        response = requests.get(pic.get('src'))
+
+        image_path = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}{i}.png'
+        output_path = f'{IMAGES_DIR}{OUTPUT_IMAGE_PATH}translated_{i}.png'
+
+        if response.status_code == 200:
+            with open(image_path, 'wb') as file:
+                file.write(response.content)
+            print('File downloaded successfully')
+        else:
+            print('Failed to download file')
+
         # Создаем экземпляр транслятора
-        translator = MangaTranslator(image)
+        translator = MangaTranslator(image_path)
     
         # Обрабатываем изображение
         text_blocks = translator.process_bubbles()
@@ -530,7 +544,22 @@ def main():
         # Сохраняем результат
         translator.save_result(output_path)
 
-        num += 1
+    # for image in range(len(dir_list)):
+    #     image = f'{IMAGES_DIR}{INPUT_IMAGES_DIR}{i}.png'
+    #     output_path = f'{IMAGES_DIR}{OUTPUT_IMAGE_PATH}translated_{i}.png'
+    #     # Создаем экземпляр транслятора
+    #     translator = MangaTranslator(image)
+    
+    #     # Обрабатываем изображение
+    #     text_blocks = translator.process_bubbles()
+        
+    #     # Переводим и заменяем текст
+    #     translator.translate_and_replace_text(text_blocks)
+        
+    #     # Сохраняем результат
+    #     translator.save_result(output_path)
+
+    #     i += 1
 
 if __name__ == "__main__":
     main()
