@@ -46,7 +46,7 @@ Update the .env file with your API credentials and preferences
 
 Configuration
 Update the following variables in your .env file:
-envCopyAPI_KEY=your_api_key_here
+API_KEY=your_api_key_here
 MODEL_ID=your_model_id
 IMAGES_DIR=examples/
 INPUT_IMAGES_DIR=original/
