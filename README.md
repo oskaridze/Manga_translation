@@ -1,3 +1,6 @@
+
+![Manga-translator](https://github.com/user-attachments/assets/700412df-c84c-4756-a8ca-dc7d6e46f53f)
+
 Manga Text Translator
 A Python-based tool for automatic manga text translation. This project detects text bubbles in manga images, extracts the text using OCR, translates it, and replaces the original text with the translated version while maintaining the original layout and style.
 🌟 Features
