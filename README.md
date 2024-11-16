@@ -1,115 +1,179 @@
-Manga Text Translator
-A Python-based tool for automatic manga text translation. This project detects text bubbles in manga images, extracts the text using OCR, translates it, and replaces the original text with the translated version while maintaining the original layout and style.
-🌟 Features
+# Manga Text Translator
 
-Text bubble detection using YOLOv8
-Optical Character Recognition (OCR) using PaddleOCR
-Automatic translation with Google Translator
-Manual translation correction option
-Text removal and replacement with clean inpainting
-Manga-style text sorting and placement
-Support for custom fonts and text formatting
+An intelligent tool for translating manga text with support for automatic and manual translation modes. The project uses computer vision to detect text bubbles, OCR for text recognition, and translation mechanisms to create translated versions of manga while preserving the original style and layout.
 
-🚀 Getting Started
-Prerequisites
+## ✨ Key Features
 
-Python 3.8+
-OpenCV
-PaddleOCR
-PIL (Python Imaging Library)
-Required Python packages (see requirements.txt)
+- 🔍 Automatic text bubble detection
+- 📝 Text recognition using PaddleOCR
+- 🌐 Automatic translation via Google Translate
+- ✏️ Manual translation correction option
+- 🎨 Intelligent text removal and replacement
+- 📊 Visual progress tracking of translation
+- 🌍 Support for different languages
+- 🔄 Image loading both locally and from websites
 
-Installation
+## 🚀 Getting Started
 
-Clone the repository:
+### Prerequisites
 
+- Python 3.8+
+- Git
+
+### Installation
+
+1. Clone the repository:
+```bash
 git clone https://github.com/oskaridze/Manga-translation.git
 cd Manga-translation
 
-Create and activate virtual environment:
-
 python -m venv venv
-# For Windows:
-venv\Scripts\activate
-# For Linux/Mac:
-source venv/bin/activate
 
-Install required packages:
+# Windows:
+venv\Scripts\activate
+
+# Linux/Mac:
+source venv/bin/activate
 
 pip install -r requirements.txt
 
-Create .env file based on .env.example:
-
 cp .env.example .env
 
-Update the .env file with your API credentials and preferences
+⚙️ Configuration
+Edit the .env file with your parameters:
 
-Configuration
-Update the following variables in your .env file:
-envCopyAPI_KEY=your_api_key_here
-MODEL_ID=your_model_id
-IMAGES_DIR=examples/
+API_KEY=your_api_key
+MODEL_ID=new-version-bubble-speech/1
+IMAGES_DIR=images/
 INPUT_IMAGES_DIR=original/
 OUTPUT_IMAGE_PATH=translated/
 DEFAULT_TARGET_LANG=ru
 OCR_LANG=en
 FONT_PATH=fonts/animeacev05.ttf
-MAX_FONT_SIZE=14
+MAX_FONT_SIZE=15
+
 📖 Usage
+The project supports two operating modes and two ways of obtaining images:
+Translation Modes:
+    1. Manual Mode (default):
+        Shows original text and suggested translation
+        Allows entering your own translation variant
+        Visually displays current and already translated bubbles
+    2. Automatic Mode:
+        Automatically translates all text
+        Fast processing without user intervention
 
-Place your manga images in the input directory specified in .env
-Run the script:
-
-python main.py
-
-For each detected text bubble, you can:
-
-Accept the automatic translation
-Enter your own translation
-Skip the bubble
-
-
-The translated image will be saved to the specified output path
+Image Sources:
+    1. Local Files:
+        python main.py --mode local
+        python main.py --mode local --auto  # for automatic mode
+    2. URL Loading:
+        python main.py --mode url --url "https://w27.onepiece-manga-online.net/"
+        python main.py --mode url --url "https://w27.onepiece-manga-online.net/" --auto
 
 📁 Project Structure
-Manga_translation/
-├── main.py           # Main script
-├── requirements.txt  # Python dependencies
-├── .env             # Configuration file
-├── .env.example     # Example configuration
-├── .gitignore       # Git ignore file
-└── examples/        # Input/export images directory
-⚙️ How it Works
+manga_translator_project/
+├── main.py                 # Main launch script
+├── manga_translator/       # Main module
+│   ├── __init__.py
+│   └── translator.py       # Translator class
+├── requirements.txt        # Dependencies
+├── .env                    # Configuration
+├── .env.example           # Configuration example
+└── examples/              # Images directory
+    ├── original/          # Source images
+    └── translated/        # Translated images
 
-Text Detection: Uses YOLOv8 model to detect text bubbles in the manga image
-Text Extraction: Applies PaddleOCR to extract text from detected regions
-Translation: Translates extracted text using Google Translator
-Text Removal: Removes original text using inpainting
-Text Insertion: Places translated text in the original bubbles
+🛠️ Technologies
+    OpenCV for image processing
+    PaddleOCR for text recognition
+    Google Translator for translation
+    PIL for text rendering
+    Beautiful Soup for web page parsing
 
-🛠️ Technologies Used
+📝 License
+    The project is distributed under the MIT license. Details in the LICENSE file.
 
-YOLOv8 for text detection
-PaddleOCR for text recognition
-Google Translator for translation
-OpenCV for image processing
-PIL for text rendering
-Python-dotenv for configuration
-
-📝 Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-Fork the project
-Create your feature branch (git checkout -b feature/AmazingFeature)
-Commit your changes (git commit -m 'Add some AmazingFeature')
-Push to the branch (git push origin feature/AmazingFeature)
-Open a Pull Request
-
-📜 License
-This project is licensed under the MIT License - see the LICENSE file for details
-Project Link: https://github.com/oskaridze/Manga_translation
 🙏 Acknowledgments
+    PaddleOCR team for the text recognition system
+    Google Translate for translation service
+    OpenCV community for computer vision tools
 
-YOLOv8 team for the detection model
-PaddleOCR team for the OCR system
-Google Translate for translation services
+🎯 Features in Detail
+Visual Progress Tracking
+    Green outlines show already translated bubbles
+    Red outline shows the currently processed bubble
+    Real-time visual feedback during translation
+
+Text Processing
+    Intelligent text bubble detection
+    High-accuracy OCR with PaddleOCR
+    Smart text placement algorithms
+    Font size auto-adjustment
+
+Translation Options
+    Automatic translation for quick results
+    Manual correction for accuracy
+    Support for multiple languages
+    Context-aware translation
+
+Image Handling
+    Support for various image formats
+    Web scraping capabilities
+    Automatic image preprocessing
+    Quality preservation
+
+🔧 Advanced Usage
+Custom Font Configuration
+You can use custom fonts by placing them in the fonts directory and updating the FONT_PATH in your .env file.
+Language Settings
+Adjust OCR_LANG and DEFAULT_TARGET_LANG in .env to work with different languages:
+
+OCR_LANG: Language for text recognition
+DEFAULT_TARGET_LANG: Target translation language
+
+Image Processing Settings
+Fine-tune the translation process by adjusting:
+
+MAX_FONT_SIZE: Maximum font size for translated text
+Detection and recognition thresholds
+Image quality parameters
+
+💡 Tips for Best Results
+
+1. Image Quality
+    Use clear, high-resolution scans
+    Ensure good contrast between text and background
+
+
+2. Translation Accuracy
+    Review automatic translations
+    Use manual mode for important or complex text
+    Consider context when correcting translations
+
+3. Performance
+    Process images in batches
+    Use automatic mode for bulk translation
+    Adjust processing parameters as needed
+
+
+
+🆘 Troubleshooting
+Common issues and solutions:
+
+1. Text Detection Issues
+    Check image quality
+    Adjust contrast and brightness
+    Verify language settings
+
+
+2. Translation Errors
+    Review target language settings
+    Check network connectivity
+    Use manual mode for verification
+
+
+3. Image Processing Problems
+    Verify file formats
+    Check image resolution
+    Ensure sufficient system resources
