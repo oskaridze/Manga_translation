@@ -6,7 +6,7 @@ from manga_translator.translator import MangaTranslator, translate_text
 from dotenv import load_dotenv
 
 def parse_images_from_url(url, input_dir):
-    """Парсит изображения с указанного URL"""
+    """Images parsing from the URL"""
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -34,7 +34,7 @@ def parse_images_from_url(url, input_dir):
         return []
 
 def process_local_images(input_dir):
-    """Получает список локальных изображений"""
+    """Getting list of local images"""
     supported_formats = ('.png', '.jpg', '.jpeg', '.webp')
     images = []
     
@@ -45,7 +45,7 @@ def process_local_images(input_dir):
     return images
 
 def translate_manga(image_path, output_dir, auto_translate=False):
-    """Переводит одно изображение манги"""
+    """Page translating"""
     try:
         translator = MangaTranslator(image_path)
         text_blocks = translator.process_bubbles()

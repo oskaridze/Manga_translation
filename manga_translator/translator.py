@@ -43,7 +43,6 @@ class MangaTranslator:
         self.page_height = self.image.shape[0]
         self.section_height = self.page_height / 3
         
-        # Инициализация необходимых компонентов
         load_dotenv()
         check_required_env_vars()
 
